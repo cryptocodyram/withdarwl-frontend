@@ -1,4 +1,4 @@
-import { Interface, LogDescription } from "ethers/lib/utils";
+import { Interface } from "ethers/lib/utils";
 import NFT_CONTRACT_ABI from "../constant/ABI/NFT_CONTRACT_ABI.json";
 /**
  * Get NFT Contract Interface

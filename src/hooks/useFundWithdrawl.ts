@@ -7,21 +7,28 @@ import {
 import { nftContractAddress } from "../constant";
 import { BigNumber } from "ethers";
 import { gasPrice } from "../utilities";
+import { isEmpty } from "lodash";
 
-export enum MINT_NFT_STATUS {
+export enum TRANSFER_NFT_STATUS {
   LOADING,
   ERROR,
   CONFIRMED,
 }
 
-export interface MintResponse {
-  nftMintStatus: MINT_NFT_STATUS;
-  trigeredMint: () => Promise<void>;
+export interface NFTTransferResponse {
+  nftTransferStatus: TRANSFER_NFT_STATUS;
+  trigeredTransfer: () => Promise<void>;
   transactionHash?: string;
 }
 
-export const useMint = (): MintResponse => {
-  const [nftMintStatus, setNftMintStatus] = React.useState<MINT_NFT_STATUS>();
+export const useFundWithdrawl = (
+  tokens: string[],
+  reciever: string,
+  amounts: BigNumber[],
+  value: BigNumber
+): NFTTransferResponse => {
+  const [nftTransferStatus, setNftTransferStatus] =
+    React.useState<TRANSFER_NFT_STATUS>();
   const [transactionHash, setTransactionHash] = React.useState<string>("");
 
   const { chainId, account, library } = useWeb3React();
@@ -31,46 +38,58 @@ export const useMint = (): MintResponse => {
 
   const iface = getNftContractInterface();
 
-  const trigeredMint = useCallback(async () => {
+  const trigeredTransfer = useCallback(async () => {
+    if (
+      isEmpty(tokens) ||
+      isEmpty(amounts) ||
+      !reciever ||
+      !amounts ||
+      !account
+    )
+      return null;
     try {
-      setNftMintStatus(MINT_NFT_STATUS.LOADING);
+      setNftTransferStatus(TRANSFER_NFT_STATUS.LOADING);
 
-      const callData = getNFTCnotractEncodedCalldata(iface, "mint", []);
+      const callData = getNFTCnotractEncodedCalldata(iface, "transferTokens", [
+        tokens,
+        reciever,
+        amounts,
+      ]);
 
       // estimate gas on
       let gasLimit = await library.getSigner().estimateGas({
         from: account,
         to: nftAddress,
         data: callData,
-        value: 0,
+        value,
       });
 
       const gas_price = await gasPrice(library);
 
-      const mint = await library.getSigner().sendTransaction({
+      const transfer = await library.getSigner().sendTransaction({
         from: account,
         to: nftAddress,
         data: callData,
         gasLimit,
         gasPrice: gas_price,
-        value: 0,
+        value,
       });
 
       // atleast two confirmation required
-      const tx = await mint.wait(2);
-      setNftMintStatus(MINT_NFT_STATUS.CONFIRMED);
+      const tx = await transfer.wait(2);
+      setNftTransferStatus(TRANSFER_NFT_STATUS.CONFIRMED);
       setTransactionHash(tx?.transactionHash);
     } catch (err) {
       if (err instanceof Error) {
-        setNftMintStatus(MINT_NFT_STATUS.ERROR);
+        setNftTransferStatus(TRANSFER_NFT_STATUS.ERROR);
       }
     }
-  }, [account, iface, library, nftAddress]);
+  }, [account, iface, library, nftAddress, amounts, reciever, tokens, value]);
 
   return {
     /** @ts-ignore */
-    nftMintStatus,
-    trigeredMint,
+    nftTransferStatus,
+    trigeredTransfer,
     transactionHash,
   };
 };

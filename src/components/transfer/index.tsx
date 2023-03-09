@@ -3,18 +3,29 @@ import { useWeb3React } from "@web3-react/core";
 import { AbstractConnector } from "@web3-react/abstract-connector";
 import { injected } from "../../connectors";
 import { useSwitchChainId } from "../../hooks/useSwitchNetwork";
-import { TRANSFER_NFT_STATUS, useTransfer } from "../../hooks/useTransferNFT";
-import { MINT_NFT_STATUS, useMint } from "../../hooks/useMint";
+import {
+  TRANSFER_NFT_STATUS,
+  useFundWithdrawl,
+} from "../../hooks/useFundWithdrawl";
+import { unitFormatter, unitParser } from "../../utilities";
+import { round } from "lodash";
+import { ZERO_ADDRESS } from "../../constant";
 
 const Networks: { [chainId: number]: string } = {
   5: "Goerli",
   80001: "Mumbai",
 };
+
 function Transfer() {
   const [recieverAddress, setReceiverAddress] = React.useState<string>();
-  const [nftId, setNftId] = React.useState<number>();
+  const [token1Address, setToken1Address] = React.useState<string>();
+  const [token2Address, setToken2Address] = React.useState<string>();
+  const [token1Amount, setToken1Amount] = React.useState<number>(0);
+  const [token2Amount, setToken2Amount] = React.useState<number>(0);
+  const [value, setValue] = React.useState<number>(0);
+  const [myBalance, setMyBalance] = React.useState<number>(0);
 
-  let { activate, account, active, chainId } = useWeb3React();
+  let { activate, account, active, chainId, library } = useWeb3React();
   let [connector] = React.useState<AbstractConnector>(injected);
 
   const switchChainId = useSwitchChainId();
@@ -23,16 +34,26 @@ function Transfer() {
     return connector && activate(connector);
   };
 
-  const mint = useMint();
+  React.useEffect(() => {
+    if (!account || !library) return;
+    const getBalance = async () => {
+      const myBalance = await library.getBalance(account);
+      console.log("myBalance", myBalance);
+      setMyBalance(unitFormatter(myBalance));
+    };
 
-  const { trigeredTransfer, nftTransferStatus } = useTransfer();
+    getBalance();
+  }, [account, library]);
+
+  const { trigeredTransfer, nftTransferStatus } = useFundWithdrawl(
+    [token1Address, token2Address],
+    recieverAddress,
+    [unitParser(token1Amount), unitParser(token2Amount)],
+    unitParser(value)
+  );
 
   return (
     <div>
-      <br />
-      <br />
-      <br />
-      <br />
       <br />
       <br />
       <button
@@ -53,13 +74,14 @@ function Transfer() {
           }`
         : ``}
       <br />
+      <label> My balance : {round(myBalance, 4)} MATIC</label>
       <br />
-      <button onClick={() => mint.trigeredMint()}>
+      {/* <button onClick={() => mint.trigeredMint()}>
         {" "}
         {mint.nftMintStatus === MINT_NFT_STATUS.LOADING
           ? `Minting`
           : `mint nft`}
-      </button>
+      </button> */}
       <br />
       <br />
       <label> Reciever Address</label>
@@ -68,12 +90,46 @@ function Transfer() {
         onChange={(e) => setReceiverAddress(e.target.value)}
       />
       <br />
-      <label> nft id</label>
-      <input value={nftId} onChange={(e) => setNftId(Number(e.target.value))} />
+      <label> Token Address and amount </label>
       <br />
-      <button
-        onClick={() => trigeredTransfer(String(recieverAddress), Number(nftId))}
-      >
+      <br />
+      <label> token address</label>
+      <input
+        value={token1Address}
+        onChange={(e) => setToken1Address(e.target.value)}
+        placeholder="token 1 address"
+      />
+      <label> token amount</label>
+      <input
+        value={token1Amount}
+        onChange={(e) => setToken1Amount(Number(e.target.value))}
+        placeholder="token 1 amount"
+      />
+      <br />
+      <br />
+      <label> token address</label>
+      <input
+        value={token2Address}
+        onChange={(e) => setToken2Address(e.target.value)}
+        placeholder="token 2 address"
+      />
+      <label> token amount</label>
+      <input
+        value={token2Amount}
+        onChange={(e) => setToken2Amount(Number(e.target.value))}
+        placeholder="token 2 amount"
+      />
+      <br />
+      <br />
+      <label> value in matic </label>
+      <input
+        value={value}
+        onChange={(e) => setValue(Number(e.target.value))}
+        placeholder="value in matic"
+      />
+      {/* <input value={nftId} onChange={(e) => setNftId(Number(e.target.value))} /> */}
+      <br />
+      <button onClick={() => trigeredTransfer()}>
         {" "}
         {nftTransferStatus === TRANSFER_NFT_STATUS.LOADING
           ? `Transfering`
